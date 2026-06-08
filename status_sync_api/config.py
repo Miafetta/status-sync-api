@@ -41,6 +41,8 @@ class ProcessingConfig:
     network_aliases: dict[str, str | None] = field(
         default_factory=lambda: {
             "NR": "5G",
+            "NR_SA": "5G",
+            "NR_NSA": "5G",
             "LTE": "4G",
             "IWLAN": "Wi-Fi Calling",
             "Unknown": None,

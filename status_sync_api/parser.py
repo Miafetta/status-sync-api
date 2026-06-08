@@ -145,15 +145,23 @@ def _parse_network_type(
     if not raw:
         return None
 
+    aliases = {key.casefold(): mapped for key, mapped in network_aliases.items()}
+    network_types: list[str] = []
+    seen: set[str] = set()
+
     for item in re.split(r"[,/|\s]+", raw):
         item = item.strip()
         if not item:
             continue
-        mapped = network_aliases.get(item, item)
-        if mapped:
-            return mapped
 
-    return None
+        mapped = aliases.get(item.casefold(), item)
+        if not mapped or mapped in seen:
+            continue
+
+        network_types.append(mapped)
+        seen.add(mapped)
+
+    return " | ".join(network_types) if network_types else None
 
 
 def _parse_location(

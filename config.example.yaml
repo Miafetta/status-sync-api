@@ -20,6 +20,8 @@ processing:
   device_aliases: {}
   network_aliases:
     NR: "5G"
+    NR_SA: "5G"
+    NR_NSA: "5G"
     LTE: "4G"
     IWLAN: "Wi-Fi Calling"
     Unknown: null

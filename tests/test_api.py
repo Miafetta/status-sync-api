@@ -106,6 +106,20 @@ def test_upload_and_latest_status_matches_blog_shape(tmp_path: Path) -> None:
     }
 
 
+def test_network_type_keeps_multiple_active_radio_types(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+
+    response = client.post(
+        "/api/upload_raw",
+        headers={"Authorization": "Bearer secret"},
+        json={"net_raw": "LTE,NR_SA,Unknown,lte"},
+    )
+    latest_response = client.get("/api/status/latest")
+
+    assert response.status_code == 200
+    assert latest_response.json()["data"]["network_type"] == "4G | 5G"
+
+
 def test_upload_accepts_receiver_log_wrapped_data(tmp_path: Path) -> None:
     client = make_client(tmp_path, geocoder=FakeGeocoder())
 

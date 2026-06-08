@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ from typing import Any, Protocol
 import httpx
 
 from status_sync_api.config import GeocodeConfig
+
+logger = logging.getLogger(__name__)
 
 
 class Geocoder(Protocol):
@@ -27,13 +30,20 @@ class CachedAddress:
     expires_at: float
 
 
+@dataclass(frozen=True)
+class FailedLookup:
+    retry_after: float
+
+
 class ReverseGeocoder:
     def __init__(self, config: GeocodeConfig) -> None:
         self.config = config
         self._cache: dict[str, CachedAddress] = {}
+        self._failures: dict[str, FailedLookup] = {}
 
     def reverse(self, latitude: float, longitude: float) -> LocationAddress | None:
         if not self.config.enabled:
+            logger.debug("Reverse geocoding is disabled.")
             return None
 
         cache_key = f"{latitude:.4f},{longitude:.4f}"
@@ -42,12 +52,39 @@ class ReverseGeocoder:
         if cached and cached.expires_at > now:
             return cached.value
 
+        failed = self._failures.get(cache_key)
+        if failed and failed.retry_after > now:
+            logger.debug(
+                "Skipping reverse geocoding for %.5f,%.5f until retry window opens.",
+                latitude,
+                longitude,
+            )
+            return cached.value if cached else None
+
         address = self._fetch_address(latitude, longitude)
         if address:
             self._cache[cache_key] = CachedAddress(
                 value=address,
                 expires_at=now + self.config.cache_ttl_seconds,
             )
+            self._failures.pop(cache_key, None)
+            return address
+
+        retry_seconds = self.config.timeout_seconds * 2
+        self._failures[cache_key] = FailedLookup(retry_after=now + retry_seconds)
+        logger.warning(
+            "Reverse geocoding failed for %.5f,%.5f; retrying in %.1f seconds.",
+            latitude,
+            longitude,
+            retry_seconds,
+        )
+        if cached:
+            logger.debug(
+                "Using stale reverse geocoding cache for %.5f,%.5f.",
+                latitude,
+                longitude,
+            )
+            return cached.value
         return address
 
     def _fetch_address(self, latitude: float, longitude: float) -> LocationAddress | None:
@@ -66,12 +103,38 @@ class ReverseGeocoder:
                 response = client.get(self.config.endpoint, params=params, headers=headers)
             response.raise_for_status()
             payload = response.json()
-        except (httpx.HTTPError, ValueError):
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "Reverse geocoding request failed for %.5f,%.5f: %s",
+                latitude,
+                longitude,
+                exc,
+            )
+            return None
+        except ValueError as exc:
+            logger.warning(
+                "Reverse geocoding response was invalid for %.5f,%.5f: %s",
+                latitude,
+                longitude,
+                exc,
+            )
             return None
 
         if not isinstance(payload, dict):
+            logger.warning(
+                "Reverse geocoding response was not an object for %.5f,%.5f.",
+                latitude,
+                longitude,
+            )
             return None
-        return format_address(payload)
+        address = format_address(payload)
+        if not address:
+            logger.warning(
+                "Reverse geocoding response did not include a usable address for %.5f,%.5f.",
+                latitude,
+                longitude,
+            )
+        return address
 
 
 def format_address(payload: dict[str, Any]) -> LocationAddress | None:

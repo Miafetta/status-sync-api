@@ -27,16 +27,16 @@ Latest status:
   "online": true,
   "updated_at": "2026-06-07T15:30:00+08:00",
   "data": {
-    "device_name": "Xiaomi 14",
+    "device_name": "Example Phone",
     "battery_level": 86,
     "battery_charging": true,
     "wifi_connected": true,
-    "wifi_ssid": "Miafetta-WiFi",
-    "network_type": "5G",
-    "current_app": "Telegram",
-    "province": "陕西省",
-    "city": "西安市",
-    "district": "雁塔区"
+    "wifi_ssid": "Example WiFi",
+    "network_type": "4G | 5G",
+    "current_app": "Example App",
+    "province": "Example Province",
+    "city": "Example City",
+    "district": "Example District"
   }
 }
 ```
@@ -47,12 +47,12 @@ Android upload fields come from `status-sync-android`:
 
 ```json
 {
-  "model": "24129PN74C",
+  "model": "EXAMPLE_MODEL",
   "battery_raw": "dumpsys battery output",
   "wifi_raw": "Wi-Fi status output",
-  "net_raw": "LTE,Unknown",
+  "net_raw": "LTE,NR",
   "location_raw": "last location output",
-  "current_app_package": "com.example.app",
+  "current_app_package": "app.placeholder.demo",
   "current_app_name": "Example App"
 }
 ```
@@ -62,9 +62,9 @@ If the input is a receiver log object, the API also reads the nested `data` obje
 ```json
 {
   "received_at": "2026-06-07T21:28:29.696091",
-  "client_ip": "192.168.0.12",
+  "client_ip": "203.0.113.10",
   "data": {
-    "model": "24129PN74C"
+    "model": "EXAMPLE_MODEL"
   }
 }
 ```
@@ -74,7 +74,7 @@ Processing rules:
 - `model` can be mapped through `processing.device_aliases`; otherwise it is returned as-is.
 - `battery_raw` is parsed into `battery_level` and `battery_charging`.
 - `wifi_raw` is parsed into `wifi_connected` and `wifi_ssid`.
-- `net_raw` is normalized through `processing.network_aliases`, such as `5G` or `4G`.
+- `net_raw` is normalized through `processing.network_aliases`, such as `5G` or `4G`. Multi-SIM network values are kept in order, for example `LTE,NR` becomes `4G | 5G`.
 - `current_app` uses the uploaded `current_app_name` directly. No package-name dictionary is maintained.
 - `location_raw` extracts coordinates and calls a public reverse geocoding API, then outputs `province/city/district`.
 - Direct `location_text`, `location`, and `province/city/district` uploads are also accepted.
@@ -90,7 +90,8 @@ Display delay is controlled by the Android app or frontend policy. The API no lo
 - If the upload is a receiver log object, the nested `data` object is stored as `raw`.
 - `/api/status/latest` output is not stored separately. It is generated from `raw`, config, and geocoding results on each request.
 - Reverse geocoding results are cached in memory. The cache TTL is controlled by `geocode.cache_ttl_seconds`, defaulting to 24 hours.
-- The geocoding cache is not written to a file or database and is lost when the API restarts.
+- Reverse geocoding failures are logged and retried after `geocode.timeout_seconds * 2`. During the retry wait, a previous successful address is returned when available.
+- The geocoding cache and failure retry state are not written to a file or database and are lost when the API restarts.
 
 ## Configuration
 

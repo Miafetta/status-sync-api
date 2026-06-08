@@ -27,16 +27,16 @@ Status Sync API 是 Status Sync Android 的轻量后端。它只负责接收 And
   "online": true,
   "updated_at": "2026-06-07T15:30:00+08:00",
   "data": {
-    "device_name": "Xiaomi 14",
+    "device_name": "示例手机",
     "battery_level": 86,
     "battery_charging": true,
     "wifi_connected": true,
-    "wifi_ssid": "Miafetta-WiFi",
-    "network_type": "5G",
-    "current_app": "Telegram",
-    "province": "陕西省",
-    "city": "西安市",
-    "district": "雁塔区"
+    "wifi_ssid": "示例无线网络",
+    "network_type": "4G | 5G",
+    "current_app": "示例应用",
+    "province": "示例省",
+    "city": "示例市",
+    "district": "示例区"
   }
 }
 ```
@@ -47,13 +47,13 @@ Android 上传字段来自 `status-sync-android`：
 
 ```json
 {
-  "model": "24129PN74C",
+  "model": "EXAMPLE_MODEL",
   "battery_raw": "dumpsys battery output",
   "wifi_raw": "Wi-Fi status output",
-  "net_raw": "LTE,Unknown",
+  "net_raw": "LTE,NR",
   "location_raw": "last location output",
-  "current_app_package": "com.example.app",
-  "current_app_name": "Example App"
+  "current_app_package": "app.placeholder.demo",
+  "current_app_name": "示例应用"
 }
 ```
 
@@ -62,9 +62,9 @@ Android 上传字段来自 `status-sync-android`：
 ```json
 {
   "received_at": "2026-06-07T21:28:29.696091",
-  "client_ip": "192.168.0.12",
+  "client_ip": "203.0.113.10",
   "data": {
-    "model": "24129PN74C"
+    "model": "EXAMPLE_MODEL"
   }
 }
 ```
@@ -74,7 +74,7 @@ API 处理规则：
 - `model` 通过 `processing.device_aliases` 可选映射为展示名称，否则原样返回。
 - `battery_raw` 解析为 `battery_level` 和 `battery_charging`。
 - `wifi_raw` 解析为 `wifi_connected` 和 `wifi_ssid`。
-- `net_raw` 通过 `processing.network_aliases` 转为 `5G`、`4G` 等展示值。
+- `net_raw` 通过 `processing.network_aliases` 转为 `5G`、`4G` 等展示值；多卡网络会按顺序输出多个值，例如 `LTE,NR` 输出 `4G | 5G`。
 - `current_app` 直接使用 Android 上传的 `current_app_name`，不维护包名字典。
 - `location_raw` 提取经纬度并调用公共反向地理编码 API，输出 `province/city/district`。
 - `location_text`、`location`、`province/city/district` 也兼容直接上传。
@@ -90,7 +90,8 @@ API 处理规则：
 - 如果上传内容是外层接收日志格式，API 会取其中的 `data` 对象作为 `raw` 保存。
 - `/api/status/latest` 的输出不会单独保存，而是在每次请求时由 `raw`、配置和地理编码结果即时生成。
 - 反向地理编码结果有进程内缓存，缓存时间由 `geocode.cache_ttl_seconds` 控制，默认 24 小时。
-- 地理编码缓存不会写入文件或数据库，API 重启后会丢失。
+- 反向地理编码失败后会记录日志，并在 `geocode.timeout_seconds * 2` 后重新查询；等待重试期间如有历史成功结果，会先返回历史地址。
+- 地理编码缓存和失败重试状态不会写入文件或数据库，API 重启后会丢失。
 
 ## 配置
 
