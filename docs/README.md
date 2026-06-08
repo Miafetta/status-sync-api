@@ -6,9 +6,9 @@ Status Sync API is a lightweight backend for Status Sync Android. It receives st
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/upload_raw` | Android raw status upload |
-| `GET` | `/api/status/latest` | Cleaned status for the blog |
-| `GET` | `/healthz` | Health check |
+| `POST` | `/upload` | Android raw status upload |
+| `GET` | `/status` | Cleaned status for the blog |
+| `GET` | `/health` | Health check |
 
 No status:
 
@@ -88,7 +88,7 @@ Display delay is controlled by the Android app or frontend policy. The API no lo
 - The input storage path is controlled by `storage.path`, defaulting to `data/status.json`.
 - The stored file contains `id`, `received_at`, and the unprocessed `raw` input data.
 - If the upload is a receiver log object, the nested `data` object is stored as `raw`.
-- `/api/status/latest` output is not stored separately. It is generated from `raw`, config, and geocoding results on each request.
+- `/status` output is not stored separately. It is generated from `raw`, config, and geocoding results on each request.
 - Reverse geocoding results are cached in memory. The cache TTL is controlled by `geocode.cache_ttl_seconds`, defaulting to 24 hours.
 - Reverse geocoding failures are logged and retried after `geocode.timeout_seconds * 2`. During the retry wait, a previous successful address is returned when available.
 - The geocoding cache and failure retry state are not written to a file or database and are lost when the API restarts.
@@ -105,19 +105,22 @@ Configuration items:
 
 | Key | Description |
 | --- | --- |
-| `server.host` | Service listen host. Usually `0.0.0.0` inside Docker. |
-| `server.port` | Service listen port. Default is `8000`. |
 | `auth.upload_token` | Bearer Token used by Android status uploads. |
 | `auth.require_upload_token` | Whether upload token validation is required. Recommended `true` for production. |
-| `storage.path` | Latest status JSON storage path. |
-| `status.online_threshold_seconds` | How many seconds after the latest upload should still count as online. |
-| `status.private_values` | Field values treated as intentionally hidden, such as `none`. |
-| `status.max_raw_value_length` | Maximum saved length for a single raw field. |
-| `status.output_timezone` | Timezone for `updated_at`, such as `+08:00` or `UTC`. |
+| `cors.*` | CORS configuration. For production, allow only the blog domain. |
 | `processing.device_aliases` | Display aliases for device models. |
 | `processing.network_aliases` | Display aliases for network types, such as `NR: 5G` and `LTE: 4G`. |
 | `geocode.*` | Reverse geocoding configuration. Default uses the Nominatim reverse API. |
-| `cors.*` | CORS configuration. For production, allow only the blog domain. |
+| `routes.upload` | Raw status upload path. Default is `/upload`. |
+| `routes.status` | Cleaned status read path. Default is `/status`. |
+| `routes.health` | Health check path. Default is `/health`. |
+| `status.output_timezone` | Timezone for `updated_at`, such as `+08:00` or `UTC`. |
+| `status.online_threshold_seconds` | How many seconds after the latest upload should still count as online. |
+| `status.private_values` | Field values treated as intentionally hidden, such as `none`. |
+| `status.max_raw_value_length` | Maximum saved length for a single raw field. |
+| `storage.path` | Latest status JSON storage path. |
+| `server.host` | Service listen host. Usually `0.0.0.0` inside Docker. |
+| `server.port` | Service listen port. Default is `8000`. |
 
 Common environment overrides:
 
@@ -164,6 +167,8 @@ The default address is `http://localhost:8000`.
 cp config.example.yaml config.yaml
 docker compose up -d --build
 ```
+
+By default, `docker-compose.yml` mounts `config.yaml` from the current directory, and service configuration is read primarily from that file.
 
 ## Test
 

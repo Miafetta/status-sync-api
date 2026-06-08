@@ -55,12 +55,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             "docs": "/docs",
         }
 
-    @app.get("/healthz")
+    @app.get(app_config.routes.health)
     def healthz() -> dict[str, bool]:
         return {"ok": True}
 
-    @app.post("/api/upload_raw", response_model=UploadResponse)
-    @app.post("/api/status/upload_raw", response_model=UploadResponse)
+    @app.post(app_config.routes.upload, response_model=UploadResponse)
     async def upload_raw(
         payload: RawStatusUpload,
         request: Request,
@@ -82,7 +81,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
         return UploadResponse(ok=True, id=record.id, received_at=record.received_at)
 
-    @app.get("/api/status/latest", response_model=LatestStatusResponse)
+    @app.get(app_config.routes.status, response_model=LatestStatusResponse)
     def latest_status(request: Request) -> LatestStatusResponse:
         config: AppConfig = request.app.state.config
         store: JsonStatusStore = request.app.state.store

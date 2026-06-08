@@ -169,7 +169,7 @@ def _parse_location(
     private_values: list[str],
     geocoder: Geocoder | None,
 ) -> LocationAddress | None:
-    direct = _location_from_direct_fields(raw, private_values)
+    direct = _location_from_fields(raw, private_values)
     if direct:
         return direct
 
@@ -179,7 +179,7 @@ def _parse_location(
 
     location_value = raw.get("location")
     if isinstance(location_value, Mapping):
-        return _location_from_mapping(location_value, private_values)
+        return _location_from_fields(location_value, private_values)
     if isinstance(location_value, str):
         return _location_from_text(location_value)
 
@@ -195,20 +195,7 @@ def _parse_location(
     return None
 
 
-def _location_from_direct_fields(
-    raw: Mapping[str, Any],
-    private_values: list[str],
-) -> LocationAddress | None:
-    return _empty_location_to_none(
-        LocationAddress(
-            province=_clean_value(raw.get("province"), private_values),
-            city=_clean_value(raw.get("city"), private_values),
-            district=_clean_value(raw.get("district"), private_values),
-        )
-    )
-
-
-def _location_from_mapping(
+def _location_from_fields(
     raw: Mapping[str, Any],
     private_values: list[str],
 ) -> LocationAddress | None:

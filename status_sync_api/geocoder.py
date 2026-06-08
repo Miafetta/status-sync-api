@@ -85,7 +85,7 @@ class ReverseGeocoder:
                 longitude,
             )
             return cached.value
-        return address
+        return None
 
     def _fetch_address(self, latitude: float, longitude: float) -> LocationAddress | None:
         headers = {"User-Agent": self.config.user_agent}

@@ -4,11 +4,6 @@ services:
     container_name: status-sync-api
     ports:
       - "8000:8000"
-    environment:
-      STATUS_SYNC_UPLOAD_TOKEN: "change-me"
-      STATUS_SYNC_CORS_ORIGINS: "https://miafetta.github.io"
-      STATUS_SYNC_STORAGE_PATH: "/app/data/status.json"
-      STATUS_SYNC_GEOCODE_USER_AGENT: "status-sync-api/0.1"
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro

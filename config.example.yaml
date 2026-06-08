@@ -1,20 +1,16 @@
-server:
-  host: "0.0.0.0"
-  port: 8000
-
 auth:
   upload_token: "change-me"
   require_upload_token: true
 
-storage:
-  path: "data/status.json"
-
-status:
-  online_threshold_seconds: 1800
-  private_values:
-    - "none"
-  max_raw_value_length: 20000
-  output_timezone: "+08:00"
+cors:
+  allow_origins:
+    - "*"
+  allow_methods:
+    - "GET"
+    - "POST"
+    - "OPTIONS"
+  allow_headers:
+    - "*"
 
 processing:
   device_aliases: {}
@@ -28,19 +24,28 @@ processing:
 
 geocode:
   enabled: true
-  endpoint: "https://nominatim.openstreetmap.org/reverse"
   user_agent: "status-sync-api/0.1"
   language: "zh-CN"
   timeout_seconds: 5.0
   cache_ttl_seconds: 86400
+  endpoint: "https://nominatim.openstreetmap.org/reverse"
   zoom: 12
 
-cors:
-  allow_origins:
-    - "*"
-  allow_methods:
-    - "GET"
-    - "POST"
-    - "OPTIONS"
-  allow_headers:
-    - "*"
+routes:
+  upload: "/upload"
+  status: "/status"
+  health: "/health"
+
+status:
+  output_timezone: "+08:00"
+  online_threshold_seconds: 1800
+  private_values:
+    - "none"
+  max_raw_value_length: 20000
+
+storage:
+  path: "data/status.json"
+
+server:
+  host: "0.0.0.0"
+  port: 8000

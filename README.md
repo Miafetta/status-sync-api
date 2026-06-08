@@ -6,9 +6,9 @@ Status Sync API 是 Status Sync Android 的轻量后端。它只负责接收 And
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `POST` | `/api/upload_raw` | Android 上传原始状态 |
-| `GET` | `/api/status/latest` | 博客读取清洗后的状态 |
-| `GET` | `/healthz` | 健康检查 |
+| `POST` | `/upload` | Android 上传原始状态 |
+| `GET` | `/status` | 博客读取清洗后的状态 |
+| `GET` | `/health` | 健康检查 |
 
 无状态时返回：
 
@@ -88,7 +88,7 @@ API 处理规则：
 - 输入保存位置由 `storage.path` 控制，默认是 `data/status.json`。
 - 保存文件包含 `id`、`received_at` 和清洗前的 `raw` 输入数据。
 - 如果上传内容是外层接收日志格式，API 会取其中的 `data` 对象作为 `raw` 保存。
-- `/api/status/latest` 的输出不会单独保存，而是在每次请求时由 `raw`、配置和地理编码结果即时生成。
+- `/status` 的输出不会单独保存，而是在每次请求时由 `raw`、配置和地理编码结果即时生成。
 - 反向地理编码结果有进程内缓存，缓存时间由 `geocode.cache_ttl_seconds` 控制，默认 24 小时。
 - 反向地理编码失败后会记录日志，并在 `geocode.timeout_seconds * 2` 后重新查询；等待重试期间如有历史成功结果，会先返回历史地址。
 - 地理编码缓存和失败重试状态不会写入文件或数据库，API 重启后会丢失。
@@ -105,19 +105,22 @@ Copy-Item config.example.yaml config.yaml
 
 | 配置项 | 说明 |
 | --- | --- |
-| `server.host` | 服务监听地址。Docker 内通常为 `0.0.0.0`。 |
-| `server.port` | 服务监听端口，默认 `8000`。 |
 | `auth.upload_token` | Android 上传状态时使用的 Bearer Token。 |
 | `auth.require_upload_token` | 是否强制校验上传密钥。生产环境建议 `true`。 |
-| `storage.path` | 最新状态 JSON 文件保存位置。 |
-| `status.online_threshold_seconds` | 最新上报在多少秒内算在线。 |
-| `status.private_values` | 视为主动隐藏的字段值，例如 `none`。 |
-| `status.max_raw_value_length` | 单个 raw 字段最大保存字符数。 |
-| `status.output_timezone` | `updated_at` 输出时区，例如 `+08:00` 或 `UTC`。 |
+| `cors.*` | 跨域访问配置。生产环境建议只允许博客域名。 |
 | `processing.device_aliases` | 设备型号展示别名。 |
 | `processing.network_aliases` | 网络类型展示别名，例如 `NR: 5G`、`LTE: 4G`。 |
 | `geocode.*` | 反向地理编码配置。默认使用 Nominatim reverse API。 |
-| `cors.*` | 跨域访问配置。生产环境建议只允许博客域名。 |
+| `routes.upload` | 原始状态上传路径，默认 `/upload`。 |
+| `routes.status` | 清洗后状态读取路径，默认 `/status`。 |
+| `routes.health` | 健康检查路径，默认 `/health`。 |
+| `status.output_timezone` | `updated_at` 输出时区，例如 `+08:00` 或 `UTC`。 |
+| `status.online_threshold_seconds` | 最新上报在多少秒内算在线。 |
+| `status.private_values` | 视为主动隐藏的字段值，例如 `none`。 |
+| `status.max_raw_value_length` | 单个 raw 字段最大保存字符数。 |
+| `storage.path` | 最新状态 JSON 文件保存位置。 |
+| `server.host` | 服务监听地址。Docker 内通常为 `0.0.0.0`。 |
+| `server.port` | 服务监听端口，默认 `8000`。 |
 
 环境变量可覆盖常用配置：
 
@@ -164,6 +167,8 @@ status-sync-api
 cp config.example.yaml config.yaml
 docker compose up -d --build
 ```
+
+默认 `docker-compose.yml` 会挂载当前目录的 `config.yaml`，服务配置以该文件为主。
 
 ## 测试
 

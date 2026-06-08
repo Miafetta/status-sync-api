@@ -14,6 +14,10 @@ auth:
   upload_token: "secret"
 storage:
   path: "tmp/status.json"
+routes:
+  upload: "custom-upload"
+  status: "/custom-status"
+  health: "/custom-health"
 status:
   output_timezone: "+08:00"
 processing:
@@ -32,6 +36,9 @@ geocode:
     assert config.server.host == "127.0.0.1"
     assert config.server.port == 9000
     assert config.auth.upload_token == "secret"
+    assert config.routes.upload == "/custom-upload"
+    assert config.routes.status == "/custom-status"
+    assert config.routes.health == "/custom-health"
     assert config.status.output_timezone == "+08:00"
     assert config.processing.device_aliases["24129PN74C"] == "Xiaomi 15"
     assert config.processing.network_aliases["LTE"] == "4G"

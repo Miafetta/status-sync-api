@@ -10,6 +10,7 @@ from status_sync_api.config import (
     AuthConfig,
     GeocodeConfig,
     ProcessingConfig,
+    RoutesConfig,
     StatusConfig,
     StorageConfig,
 )
@@ -28,11 +29,13 @@ def make_client(
     *,
     geocoder: object | None = None,
     processing: ProcessingConfig | None = None,
+    routes: RoutesConfig | None = None,
     status: StatusConfig | None = None,
 ) -> TestClient:
     config = AppConfig(
         auth=AuthConfig(upload_token="secret", require_upload_token=True),
         storage=StorageConfig(path=tmp_path / "status.json"),
+        routes=routes or RoutesConfig(),
         status=status or StatusConfig(),
         processing=processing or ProcessingConfig(),
         geocode=GeocodeConfig(enabled=False),
@@ -46,7 +49,7 @@ def make_client(
 def test_empty_latest_status(tmp_path: Path) -> None:
     client = make_client(tmp_path)
 
-    response = client.get("/api/status/latest")
+    response = client.get("/status")
 
     assert response.status_code == 200
     assert response.json() == {"online": False, "updated_at": None, "data": None}
@@ -55,7 +58,7 @@ def test_empty_latest_status(tmp_path: Path) -> None:
 def test_upload_requires_bearer_token(tmp_path: Path) -> None:
     client = make_client(tmp_path)
 
-    response = client.post("/api/upload_raw", json={"model": "Pixel"})
+    response = client.post("/upload", json={"model": "Pixel"})
 
     assert response.status_code == 401
 
@@ -82,11 +85,11 @@ def test_upload_and_latest_status_matches_blog_shape(tmp_path: Path) -> None:
     }
 
     upload_response = client.post(
-        "/api/upload_raw",
+        "/upload",
         headers={"Authorization": "Bearer secret"},
         json=payload,
     )
-    latest_response = client.get("/api/status/latest")
+    latest_response = client.get("/status")
 
     assert upload_response.status_code == 200
     latest = latest_response.json()
@@ -110,11 +113,11 @@ def test_network_type_keeps_multiple_active_radio_types(tmp_path: Path) -> None:
     client = make_client(tmp_path)
 
     response = client.post(
-        "/api/upload_raw",
+        "/upload",
         headers={"Authorization": "Bearer secret"},
         json={"net_raw": "LTE,NR_SA,Unknown,lte"},
     )
-    latest_response = client.get("/api/status/latest")
+    latest_response = client.get("/status")
 
     assert response.status_code == 200
     assert latest_response.json()["data"]["network_type"] == "4G | 5G"
@@ -124,7 +127,7 @@ def test_upload_accepts_receiver_log_wrapped_data(tmp_path: Path) -> None:
     client = make_client(tmp_path, geocoder=FakeGeocoder())
 
     response = client.post(
-        "/api/upload_raw",
+        "/upload",
         headers={"Authorization": "Bearer secret"},
         json={
             "received_at": "2026-06-07T21:28:29.696091",
@@ -140,7 +143,7 @@ def test_upload_accepts_receiver_log_wrapped_data(tmp_path: Path) -> None:
             },
         },
     )
-    latest_response = client.get("/api/status/latest")
+    latest_response = client.get("/status")
 
     assert response.status_code == 200
     assert latest_response.json()["data"]["current_app"] == "状态同步"
@@ -151,11 +154,11 @@ def test_uploaded_location_text_is_split_into_fields(tmp_path: Path) -> None:
     client = make_client(tmp_path)
 
     client.post(
-        "/api/upload_raw",
+        "/upload",
         headers={"Authorization": "Bearer secret"},
         json={"location_text": "陕西省西安市雁塔区"},
     )
-    latest_response = client.get("/api/status/latest")
+    latest_response = client.get("/status")
 
     assert latest_response.json()["data"] == {
         "device_name": None,
@@ -175,7 +178,7 @@ def test_private_payload_hides_public_data(tmp_path: Path) -> None:
     client = make_client(tmp_path)
 
     response = client.post(
-        "/api/upload_raw",
+        "/upload",
         headers={"Authorization": "Bearer secret"},
         json={
             "model": "none",
@@ -186,7 +189,30 @@ def test_private_payload_hides_public_data(tmp_path: Path) -> None:
             "current_app_name": "none",
         },
     )
-    latest_response = client.get("/api/status/latest")
+    latest_response = client.get("/status")
 
     assert response.status_code == 200
     assert latest_response.json()["data"] is None
+
+
+def test_api_routes_can_be_configured(tmp_path: Path) -> None:
+    client = make_client(
+        tmp_path,
+        routes=RoutesConfig(
+            upload="/custom/upload",
+            status="/custom/status",
+            health="/custom/health",
+        ),
+    )
+
+    health_response = client.get("/custom/health")
+    upload_response = client.post(
+        "/custom/upload",
+        headers={"Authorization": "Bearer secret"},
+        json={"net_raw": "NR"},
+    )
+    status_response = client.get("/custom/status")
+
+    assert health_response.json() == {"ok": True}
+    assert upload_response.status_code == 200
+    assert status_response.json()["data"]["network_type"] == "5G"

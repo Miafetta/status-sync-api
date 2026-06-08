@@ -8,6 +8,14 @@ from typing import Any
 import yaml
 
 DEFAULT_CONFIG_PATH = Path("config.yaml")
+DEFAULT_NETWORK_ALIASES: dict[str, str | None] = {
+    "NR": "5G",
+    "NR_SA": "5G",
+    "NR_NSA": "5G",
+    "LTE": "4G",
+    "IWLAN": "Wi-Fi Calling",
+    "Unknown": None,
+}
 
 
 @dataclass(frozen=True)
@@ -28,6 +36,13 @@ class StorageConfig:
 
 
 @dataclass(frozen=True)
+class RoutesConfig:
+    upload: str = "/upload"
+    status: str = "/status"
+    health: str = "/health"
+
+
+@dataclass(frozen=True)
 class StatusConfig:
     online_threshold_seconds: int = 1800
     private_values: list[str] = field(default_factory=lambda: ["none"])
@@ -39,14 +54,7 @@ class StatusConfig:
 class ProcessingConfig:
     device_aliases: dict[str, str] = field(default_factory=dict)
     network_aliases: dict[str, str | None] = field(
-        default_factory=lambda: {
-            "NR": "5G",
-            "NR_SA": "5G",
-            "NR_NSA": "5G",
-            "LTE": "4G",
-            "IWLAN": "Wi-Fi Calling",
-            "Unknown": None,
-        }
+        default_factory=lambda: DEFAULT_NETWORK_ALIASES.copy()
     )
 
 
@@ -73,6 +81,7 @@ class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
+    routes: RoutesConfig = field(default_factory=RoutesConfig)
     status: StatusConfig = field(default_factory=StatusConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     cors: CorsConfig = field(default_factory=CorsConfig)
@@ -108,6 +117,11 @@ def load_config(path: str | Path | None = None) -> AppConfig:
                     default="data/status.json",
                 )
             ),
+        ),
+        routes=RoutesConfig(
+            upload=_route_path(data, "routes", "upload", default="/upload"),
+            status=_route_path(data, "routes", "status", default="/status"),
+            health=_route_path(data, "routes", "health", default="/health"),
         ),
         status=StatusConfig(
             online_threshold_seconds=max(
@@ -148,7 +162,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         processing=ProcessingConfig(
             device_aliases=_str_dict(data, "processing", "device_aliases"),
             network_aliases={
-                **ProcessingConfig().network_aliases,
+                **DEFAULT_NETWORK_ALIASES,
                 **_nullable_str_dict(data, "processing", "network_aliases"),
             },
         ),
@@ -257,6 +271,14 @@ def _env_str(env_name: str, data: dict[str, Any], section: str, key: str, defaul
         return env_value
     value = _from_data(data, section, key, default)
     return str(value).strip()
+
+
+def _route_path(data: dict[str, Any], section: str, key: str, default: str) -> str:
+    value = _from_data(data, section, key, default)
+    path = str(value).strip() or default
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return path
 
 
 def _env_int(env_name: str, data: dict[str, Any], section: str, key: str, default: int) -> int:

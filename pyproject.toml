@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A small self-hosted API for Status Sync Android phone status uploads."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "GPL-3.0-only" }
 authors = [{ name = "Miafetta" }]
 dependencies = [
     "fastapi>=0.115.0,<1.0.0",
