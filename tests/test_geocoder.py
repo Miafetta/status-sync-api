@@ -3,7 +3,12 @@ from __future__ import annotations
 import logging
 
 from status_sync_api.config import GeocodeConfig
-from status_sync_api.geocoder import LocationAddress, ReverseGeocoder, format_address
+from status_sync_api.geocoder import (
+    LocationAddress,
+    ReverseGeocoder,
+    format_address,
+    format_amap_address,
+)
 
 
 class SequenceGeocoder(ReverseGeocoder):
@@ -20,6 +25,32 @@ class SequenceGeocoder(ReverseGeocoder):
     def _fetch_address(self, latitude: float, longitude: float) -> LocationAddress | None:
         self.calls += 1
         return self.results.pop(0)
+
+
+class CapturingAmapGeocoder(ReverseGeocoder):
+    def __init__(self) -> None:
+        super().__init__(GeocodeConfig(provider="amap", api_key="secret"))
+        self.params: dict[str, object] | None = None
+
+    def _request_json(
+        self,
+        latitude: float,
+        longitude: float,
+        params: dict[str, object],
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, object] | None:
+        self.params = params
+        return {
+            "status": "1",
+            "info": "OK",
+            "regeocode": {
+                "addressComponent": {
+                    "province": "陕西省",
+                    "city": "西安市",
+                    "district": "碑林区",
+                }
+            },
+        }
 
 
 def test_china_address_is_reduced_to_district_level() -> None:
@@ -58,6 +89,65 @@ def test_china_address_uses_display_name_when_nominatim_city_is_district() -> No
         city="西安市",
         district="碑林区",
     )
+
+
+def test_amap_address_is_reduced_to_district_level() -> None:
+    payload = {
+        "status": "1",
+        "info": "OK",
+        "regeocode": {
+            "addressComponent": {
+                "country": "中国",
+                "province": "陕西省",
+                "city": "西安市",
+                "district": "碑林区",
+                "township": "太乙路街道",
+            }
+        },
+    }
+
+    assert format_amap_address(payload) == LocationAddress(
+        province="陕西省",
+        city="西安市",
+        district="碑林区",
+    )
+
+
+def test_amap_municipality_uses_province_as_city_when_city_is_empty_list() -> None:
+    payload = {
+        "status": "1",
+        "info": "OK",
+        "regeocode": {
+            "addressComponent": {
+                "country": "中国",
+                "province": "北京市",
+                "city": [],
+                "district": "海淀区",
+            }
+        },
+    }
+
+    assert format_amap_address(payload) == LocationAddress(
+        province="北京市",
+        city="北京市",
+        district="海淀区",
+    )
+
+
+def test_amap_request_uses_longitude_latitude_location_order() -> None:
+    geocoder = CapturingAmapGeocoder()
+
+    assert geocoder.reverse(34.2463419, 108.9779938) == LocationAddress(
+        province="陕西省",
+        city="西安市",
+        district="碑林区",
+    )
+    assert geocoder.params == {
+        "key": "secret",
+        "location": "108.977994,34.246342",
+        "extensions": "base",
+        "output": "JSON",
+    }
 
 
 def test_reverse_geocoder_uses_stale_address_until_failure_retry_window(

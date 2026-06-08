@@ -76,7 +76,7 @@ API 处理规则：
 - `wifi_raw` 解析为 `wifi_connected` 和 `wifi_ssid`。
 - `net_raw` 通过 `processing.network_aliases` 转为 `5G`、`4G` 等展示值；多卡网络会按顺序输出多个值，例如 `LTE,NR` 输出 `4G | 5G`。
 - `current_app` 直接使用 Android 上传的 `current_app_name`，不维护包名字典。
-- `location_raw` 提取经纬度并调用公共反向地理编码 API，输出 `province/city/district`。
+- `location_raw` 提取经纬度并调用高德逆地理编码 API，输出 `province/city/district`。
 - `location_text`、`location`、`province/city/district` 也兼容直接上传。
 - `status.private_values` 中的值会被视为主动隐藏，例如 Android 私密模式上传的 `none`。
 
@@ -110,7 +110,12 @@ Copy-Item config.example.yaml config.yaml
 | `cors.*` | 跨域访问配置。生产环境建议只允许博客域名。 |
 | `processing.device_aliases` | 设备型号展示别名。 |
 | `processing.network_aliases` | 网络类型展示别名，例如 `NR: 5G`、`LTE: 4G`。 |
-| `geocode.*` | 反向地理编码配置。默认使用 Nominatim reverse API。 |
+| `geocode.enabled` | 是否启用反向地理编码。关闭后位置字段不会通过经纬度自动补全。 |
+| `geocode.provider` | 反向地理编码服务提供方，默认 `amap`。 |
+| `geocode.api_key` | 高德 Web 服务 API Key。启用高德逆地理编码时必须配置。 |
+| `geocode.endpoint` | 反向地理编码 API 地址，默认 `https://restapi.amap.com/v3/geocode/regeo`。 |
+| `geocode.timeout_seconds` | 反向地理编码请求超时时间。 |
+| `geocode.cache_ttl_seconds` | 反向地理编码结果进程内缓存时间。 |
 | `routes.upload` | 原始状态上传路径，默认 `/upload`。 |
 | `routes.status` | 清洗后状态读取路径，默认 `/status`。 |
 | `routes.health` | 健康检查路径，默认 `/health`。 |
@@ -132,8 +137,16 @@ STATUS_SYNC_STORAGE_PATH
 STATUS_SYNC_PORT
 STATUS_SYNC_OUTPUT_TIMEZONE
 STATUS_SYNC_GEOCODE_ENABLED
+STATUS_SYNC_GEOCODE_PROVIDER
+STATUS_SYNC_GEOCODE_API_KEY
+STATUS_SYNC_GEOCODE_ENDPOINT
 STATUS_SYNC_GEOCODE_USER_AGENT
+AMAP_KEY
 ```
+
+高德逆地理编码 API 文档：[https://lbs.amap.com/api/webservice/guide/api/georegeo](https://lbs.amap.com/api/webservice/guide/api/georegeo)
+
+如果日志中出现 `USERKEY_PLAT_NOMATCH`，请确认使用的是高德地图官网申请的 **Web 服务 API** 类型 Key，并检查该 Key 的平台限制或服务端 IP 白名单配置。
 
 ## 本地运行
 

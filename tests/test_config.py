@@ -27,6 +27,8 @@ processing:
     LTE: "4G"
 geocode:
   enabled: false
+  provider: "amap"
+  api_key: "amap-secret"
 """,
         encoding="utf-8",
     )
@@ -43,3 +45,6 @@ geocode:
     assert config.processing.device_aliases["24129PN74C"] == "Xiaomi 15"
     assert config.processing.network_aliases["LTE"] == "4G"
     assert config.geocode.enabled is False
+    assert config.geocode.provider == "amap"
+    assert config.geocode.api_key == "amap-secret"
+    assert config.geocode.endpoint == "https://restapi.amap.com/v3/geocode/regeo"

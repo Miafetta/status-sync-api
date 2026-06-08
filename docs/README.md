@@ -76,7 +76,7 @@ Processing rules:
 - `wifi_raw` is parsed into `wifi_connected` and `wifi_ssid`.
 - `net_raw` is normalized through `processing.network_aliases`, such as `5G` or `4G`. Multi-SIM network values are kept in order, for example `LTE,NR` becomes `4G | 5G`.
 - `current_app` uses the uploaded `current_app_name` directly. No package-name dictionary is maintained.
-- `location_raw` extracts coordinates and calls a public reverse geocoding API, then outputs `province/city/district`.
+- `location_raw` extracts coordinates and calls the Amap reverse geocoding API, then outputs `province/city/district`.
 - Direct `location_text`, `location`, and `province/city/district` uploads are also accepted.
 - Values listed in `status.private_values` are treated as intentionally hidden, such as `none` from Android private mode.
 
@@ -110,7 +110,12 @@ Configuration items:
 | `cors.*` | CORS configuration. For production, allow only the blog domain. |
 | `processing.device_aliases` | Display aliases for device models. |
 | `processing.network_aliases` | Display aliases for network types, such as `NR: 5G` and `LTE: 4G`. |
-| `geocode.*` | Reverse geocoding configuration. Default uses the Nominatim reverse API. |
+| `geocode.enabled` | Whether reverse geocoding is enabled. When disabled, location fields are not automatically filled from coordinates. |
+| `geocode.provider` | Reverse geocoding provider. Default is `amap`. |
+| `geocode.api_key` | Amap Web Service API key. Required when Amap reverse geocoding is enabled. |
+| `geocode.endpoint` | Reverse geocoding API endpoint. Default is `https://restapi.amap.com/v3/geocode/regeo`. |
+| `geocode.timeout_seconds` | Reverse geocoding request timeout. |
+| `geocode.cache_ttl_seconds` | In-memory cache TTL for reverse geocoding results. |
 | `routes.upload` | Raw status upload path. Default is `/upload`. |
 | `routes.status` | Cleaned status read path. Default is `/status`. |
 | `routes.health` | Health check path. Default is `/health`. |
@@ -132,8 +137,16 @@ STATUS_SYNC_STORAGE_PATH
 STATUS_SYNC_PORT
 STATUS_SYNC_OUTPUT_TIMEZONE
 STATUS_SYNC_GEOCODE_ENABLED
+STATUS_SYNC_GEOCODE_PROVIDER
+STATUS_SYNC_GEOCODE_API_KEY
+STATUS_SYNC_GEOCODE_ENDPOINT
 STATUS_SYNC_GEOCODE_USER_AGENT
+AMAP_KEY
 ```
+
+Amap reverse geocoding API documentation: [https://lbs.amap.com/api/webservice/guide/api/georegeo](https://lbs.amap.com/api/webservice/guide/api/georegeo)
+
+If the log shows `USERKEY_PLAT_NOMATCH`, make sure the key is an Amap **Web Service API** key and check its platform restrictions or server IP allowlist.
 
 ## Run Locally
 

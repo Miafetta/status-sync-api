@@ -8,6 +8,8 @@ from typing import Any
 import yaml
 
 DEFAULT_CONFIG_PATH = Path("config.yaml")
+DEFAULT_AMAP_REVERSE_GEOCODE_ENDPOINT = "https://restapi.amap.com/v3/geocode/regeo"
+DEFAULT_NOMINATIM_REVERSE_GEOCODE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse"
 DEFAULT_NETWORK_ALIASES: dict[str, str | None] = {
     "NR": "5G",
     "NR_SA": "5G",
@@ -68,7 +70,9 @@ class CorsConfig:
 @dataclass(frozen=True)
 class GeocodeConfig:
     enabled: bool = True
-    endpoint: str = "https://nominatim.openstreetmap.org/reverse"
+    provider: str = "amap"
+    api_key: str = ""
+    endpoint: str = DEFAULT_AMAP_REVERSE_GEOCODE_ENDPOINT
     user_agent: str = "status-sync-api/0.1"
     language: str = "zh-CN"
     timeout_seconds: float = 5.0
@@ -91,6 +95,18 @@ class AppConfig:
 def load_config(path: str | Path | None = None) -> AppConfig:
     config_path = Path(path or os.getenv("STATUS_SYNC_CONFIG", DEFAULT_CONFIG_PATH))
     data = _load_yaml(config_path)
+    geocode_provider = _env_str(
+        "STATUS_SYNC_GEOCODE_PROVIDER",
+        data,
+        "geocode",
+        "provider",
+        default="amap",
+    ).lower()
+    geocode_endpoint_default = (
+        DEFAULT_NOMINATIM_REVERSE_GEOCODE_ENDPOINT
+        if geocode_provider == "nominatim"
+        else DEFAULT_AMAP_REVERSE_GEOCODE_ENDPOINT
+    )
 
     return AppConfig(
         server=ServerConfig(
@@ -197,12 +213,20 @@ def load_config(path: str | Path | None = None) -> AppConfig:
                 "enabled",
                 default=True,
             ),
+            provider=geocode_provider,
+            api_key=_env_str(
+                "STATUS_SYNC_GEOCODE_API_KEY",
+                data,
+                "geocode",
+                "api_key",
+                default=os.getenv("AMAP_KEY", ""),
+            ),
             endpoint=_env_str(
                 "STATUS_SYNC_GEOCODE_ENDPOINT",
                 data,
                 "geocode",
                 "endpoint",
-                default="https://nominatim.openstreetmap.org/reverse",
+                default=geocode_endpoint_default,
             ),
             user_agent=_env_str(
                 "STATUS_SYNC_GEOCODE_USER_AGENT",

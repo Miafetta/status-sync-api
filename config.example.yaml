@@ -24,11 +24,13 @@ processing:
 
 geocode:
   enabled: true
+  provider: "amap"
+  api_key: ""
+  endpoint: "https://restapi.amap.com/v3/geocode/regeo"
   user_agent: "status-sync-api/0.1"
   language: "zh-CN"
   timeout_seconds: 5.0
   cache_ttl_seconds: 86400
-  endpoint: "https://nominatim.openstreetmap.org/reverse"
   zoom: 12
 
 routes:

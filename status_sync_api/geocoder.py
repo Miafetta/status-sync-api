@@ -88,6 +88,40 @@ class ReverseGeocoder:
         return None
 
     def _fetch_address(self, latitude: float, longitude: float) -> LocationAddress | None:
+        if self.config.provider == "amap":
+            return self._fetch_amap_address(latitude, longitude)
+        if self.config.provider == "nominatim":
+            return self._fetch_nominatim_address(latitude, longitude)
+
+        logger.warning("Unsupported reverse geocoding provider: %s", self.config.provider)
+        return None
+
+    def _fetch_amap_address(self, latitude: float, longitude: float) -> LocationAddress | None:
+        if not self.config.api_key:
+            logger.warning("Amap reverse geocoding key is not configured.")
+            return None
+
+        params = {
+            "key": self.config.api_key,
+            "location": f"{longitude:.6f},{latitude:.6f}",
+            "extensions": "base",
+            "output": "JSON",
+        }
+
+        payload = self._request_json(latitude, longitude, params)
+        if not payload:
+            return None
+
+        address = format_amap_address(payload)
+        if not address:
+            logger.warning(
+                "Amap reverse geocoding response did not include a usable address for %.5f,%.5f.",
+                latitude,
+                longitude,
+            )
+        return address
+
+    def _fetch_nominatim_address(self, latitude: float, longitude: float) -> LocationAddress | None:
         headers = {"User-Agent": self.config.user_agent}
         params = {
             "format": "jsonv2",
@@ -98,6 +132,27 @@ class ReverseGeocoder:
             "accept-language": self.config.language,
         }
 
+        payload = self._request_json(latitude, longitude, params, headers)
+        if not payload:
+            return None
+
+        address = format_nominatim_address(payload)
+        if not address:
+            logger.warning(
+                "Nominatim reverse geocoding response did not include a usable address "
+                "for %.5f,%.5f.",
+                latitude,
+                longitude,
+            )
+        return address
+
+    def _request_json(
+        self,
+        latitude: float,
+        longitude: float,
+        params: dict[str, Any],
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, Any] | None:
         try:
             with httpx.Client(timeout=self.config.timeout_seconds) as client:
                 response = client.get(self.config.endpoint, params=params, headers=headers)
@@ -127,17 +182,46 @@ class ReverseGeocoder:
                 longitude,
             )
             return None
-        address = format_address(payload)
-        if not address:
-            logger.warning(
-                "Reverse geocoding response did not include a usable address for %.5f,%.5f.",
-                latitude,
-                longitude,
-            )
-        return address
+        return payload
+
+
+def format_amap_address(payload: dict[str, Any]) -> LocationAddress | None:
+    if str(payload.get("status", "")).strip() != "1":
+        logger.warning(
+            "Amap reverse geocoding failed: %s",
+            _clean_text(payload.get("info")) or "unknown error",
+        )
+        return None
+
+    regeocode = payload.get("regeocode")
+    if not isinstance(regeocode, dict):
+        return None
+
+    component = regeocode.get("addressComponent")
+    if not isinstance(component, dict):
+        return None
+
+    province = _clean_amap_component(component.get("province"))
+    city = _clean_amap_component(component.get("city"))
+    district = _clean_amap_component(component.get("district"))
+
+    if not city and province in {"北京市", "天津市", "上海市", "重庆市"}:
+        city = province
+
+    return _empty_to_none(
+        LocationAddress(
+            province=province,
+            city=city,
+            district=district,
+        )
+    )
 
 
 def format_address(payload: dict[str, Any]) -> LocationAddress | None:
+    return format_nominatim_address(payload)
+
+
+def format_nominatim_address(payload: dict[str, Any]) -> LocationAddress | None:
     address = payload.get("address")
     if not isinstance(address, dict):
         return None
@@ -200,6 +284,18 @@ def _clean_text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _clean_amap_component(value: Any) -> str | None:
+    if isinstance(value, list):
+        for item in value:
+            text = _clean_text(item)
+            if text:
+                return text
+        return None
+    if isinstance(value, dict):
+        return None
+    return _clean_text(value)
 
 
 def _display_name_parts(payload: dict[str, Any]) -> list[str]:
